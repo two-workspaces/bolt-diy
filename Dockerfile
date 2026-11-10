@@ -12,8 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 RUN git clone --depth 1 --branch "$BOLT_VERSION" https://github.com/stackblitz-labs/bolt.diy.git . \
   && pnpm install --frozen-lockfile \
   && NODE_OPTIONS=--max-old-space-size=4096 pnpm run build \
-  && pnpm prune --prod --ignore-scripts \
-  && rm -rf .git docs e2e-tests electron benchmarks tests
+  && rm -rf .git docs e2e-tests electron benchmarks tests \
+  && pnpm store prune
+# No `pnpm prune --prod` here, unlike upstream's Dockerfile: the app is served by
+# `vite preview`, and vite and its Cloudflare plugin are devDependencies. Pruned, the
+# container dies at start with "vite: No such file or directory".
 
 FROM node:22-bookworm-slim
 # Caddy owns the public port: bolt.diy has no login, and its server refuses
