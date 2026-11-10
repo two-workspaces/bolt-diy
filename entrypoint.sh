@@ -15,6 +15,26 @@ done
 PASSWORD_HASH="$(caddy hash-password --plaintext "$WEB_PASSWORD")"
 unset WEB_PASSWORD
 
+# Killed at startup means the plan gives the service too little memory (it needs about
+# 600 MB, the Free plan allows 500). A failed deploy would only show that in the logs,
+# so the container stays up and says it on the page instead.
+low_memory_notice() {
+  echo "==> bolt.diy was killed while starting: out of memory. It needs 1 GB; serving a notice instead." >&2
+  cat > /tmp/Caddyfile <<CADDY
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:${PORT} {
+	respond /healthz "ok" 200
+	respond "bolt.diy could not start: this service has less than the 1 GB of memory it needs. Raise the memory limit (Railway's Free plan allows 0.5 GB), then redeploy." 503
+}
+CADDY
+  exec caddy run --config /tmp/Caddyfile --adapter caddyfile
+}
+
 cd /app
 node_modules/.bin/vite preview --host 127.0.0.1 --port "$INTERNAL_PORT" --strictPort &
 APP_PID=$!
@@ -26,7 +46,11 @@ ready=
 for _ in $(seq 1 240); do
   code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${INTERNAL_PORT}/" || true)"
   if [ "$code" = 200 ]; then ready=1; break; fi
-  kill -0 "$APP_PID" 2>/dev/null || { echo "FATAL: bolt.diy exited during startup" >&2; exit 1; }
+  if ! kill -0 "$APP_PID" 2>/dev/null; then
+    rc=0; wait "$APP_PID" || rc=$?
+    [ "$rc" = 137 ] && low_memory_notice
+    echo "FATAL: bolt.diy exited during startup (status ${rc})" >&2; exit 1
+  fi
   sleep 1
 done
 [ -n "$ready" ] || { echo "FATAL: bolt.diy did not answer (last status ${code:-none})" >&2; exit 1; }
