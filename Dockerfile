@@ -33,7 +33,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /app
 COPY --from=build /app /app
 COPY --chmod=0755 entrypoint.sh /usr/local/bin/entrypoint.sh
+# The server side runs inside workerd, which does not see the container's environment
+# unless told to. Without CLOUDFLARE_INCLUDE_PROCESS_ENV a provider key set as a
+# variable is ignored (/api/check-env-key answers isSet:false).
 ENV NODE_ENV=production RUNNING_IN_DOCKER=true WRANGLER_SEND_METRICS=false \
-    VITE_LOG_LEVEL=info PORT=8080
+    CLOUDFLARE_INCLUDE_PROCESS_ENV=true VITE_LOG_LEVEL=info PORT=8080
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
