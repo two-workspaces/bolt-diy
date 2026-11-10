@@ -1,0 +1,15 @@
+diff --git a/vite.config.ts b/vite.config.ts
+index 3ed4b6c..825a396 100644
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -236,6 +236,10 @@ function browserPolyfills() {
+     },
+     transform(code: string, id: string) {
+       // Skip node_modules except for specific ones that need polyfills
++      if (id.startsWith('\0') || id.includes('rolldown')) {
++        return null;
++      }
++
+       if (id.includes('node_modules')) {
+         // Only inject polyfills for path-browserify and other packages that need them
+         if (!id.includes('path-browserify')) {

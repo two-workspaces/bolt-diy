@@ -9,7 +9,13 @@ ENV HUSKY=0 CI=true
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
   && rm -rf /var/lib/apt/lists/* \
   && corepack enable && corepack prepare pnpm@9.15.9 --activate
+# v1.0.1's polyfill transform also prepends its Buffer import to the bundler's own
+# runtime module, which makes two chunks import each other and leaves the page blank
+# ("t is not a function"). The patch skips virtual modules. `git apply` fails the
+# build once upstream changes that code, which is the cue to drop the patch.
+COPY polyfill-runtime.patch /tmp/polyfill-runtime.patch
 RUN git clone --depth 1 --branch "$BOLT_VERSION" https://github.com/stackblitz-labs/bolt.diy.git . \
+  && git apply /tmp/polyfill-runtime.patch \
   && pnpm install --frozen-lockfile \
   && NODE_OPTIONS=--max-old-space-size=4096 pnpm run build \
   && rm -rf .git docs e2e-tests electron benchmarks tests \
