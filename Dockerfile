@@ -3,7 +3,7 @@
 # deploy pulls the finished image.
 FROM node:22-bookworm-slim AS build
 # upgrade: github stackblitz-labs/bolt.diy
-v1.0.1=ARG BOLT_VERSION=v1.0.3=v1.0.1
+ARG BOLT_VERSION=v1.0.3
 WORKDIR /app
 ENV HUSKY=0 CI=true
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
